@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Vòng quay may mắn – Gấu Cay</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#ffd600">
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{--ui-scale:clamp(.85,100vh/780,1);}
+html,body{width:100%;height:100%}
+body{
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    font-family:Arial,sans-serif;
+    background:#ffd600 url("https://sf-static.upanhlaylink.com/img/image_20260104ee0977c2365efe1a7052045e88548a27.jpg") no-repeat top center/100% auto;
+    overflow:hidden;
+}
+
+#menuBtn,#resetCycle{
+    position:fixed;
+    top: calc(12px + env(safe-area-inset-top));
+    background:none;
+    border:none;
+    font-size:24px;
+    color:#555;
+    z-index:9999;
+}
+#menuBtn{left:-20px;}
+#resetCycle{right:-6px}
+#resetCycle:active{transform:rotate(-90deg)}
+
+#resetMsg{
+    position:fixed;
+    top:0;
+    right:12px;
+    font-size:11px;
+    color:#666;
+    opacity:0;
+    transition:.25s;
+}
+#resetMsg.show{opacity:1}
+
+#wrapper{
+    width:100%;
+    margin-top:32vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    transform:scale(var(--ui-scale));
+}
+canvas{width:80vw;max-width:390px;aspect-ratio:1/1}
+
+#codeInput{
+    margin-top:12px;
+    width:160px;
+    padding:12px;
+    text-align:center;
+    font-size:18px;
+    letter-spacing:6px;
+    border:none;
+    border-radius:999px;
+    background:rgba(255,255,255,.45);
+    font-weight:bold;
+}
+button{
+    margin-top:14px;
+    padding:14px 42px;
+    border:none;
+    border-radius:999px;
+    background:linear-gradient(45deg,#ff9800,#ff5722);
+    color:#fff;
+    font-size:18px;
+    font-weight:bold;
+    cursor:pointer;
+}
+button:active{transform:scale(.95)}
+
+#result{
+    margin-top:10px;
+    min-height:28px;
+    font-size:18px;
+    font-weight:900;
+    text-align:center;
+}
+.flash{color:#e1b7ff}
+#result.flash{
+    text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000,0 0 14px #9c27b0;
+}
+
+/* ===== STATS ===== */
+#statsPanel{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.45);
+    display:none;
+    align-items:center;
+    justify-content:center;
+}
+#statsPanel.show{display:flex}
+.statsBox{
+    width:86%;
+    max-width:360px;
+    background:#fff;
+    color:#333;
+    border-radius:18px;
+    padding:16px;
+}
+.statsBox h3{text-align:center;color:#ff5722}
+#statsContent{font-size:14px;margin:12px 0}
+#clearTodayStats{
+    width:100%;
+    padding:10px;
+    border:none;
+    border-radius:999px;
+    background:#eee;
+    color:#d32f2f;
+    font-weight:bold;
+    margin-bottom:8px;
+}
+#closeStats{
+    width:100%;
+    padding:10px;
+    border:none;
+    border-radius:999px;
+    background:linear-gradient(45deg,#ff9800,#ff5722);
+    color:#fff;
+}
+
+/* ===== CONFIRM ===== */
+#confirmClear{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.45);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:10000;
+}
+</style>
+</head>
+
+<body>
+
+<button id="menuBtn">☰</button>
+<button id="resetCycle">↻</button>
+<div id="resetMsg">Đã reset</div>
+
+<div id="wrapper">
+    <canvas id="wheel" width="480" height="480"></canvas>
+    <input id="codeInput" maxlength="4" inputmode="numeric" placeholder="Nhập mã" readonly>
+    <button id="btn">BẮT ĐẦU</button>
+    <div id="result"></div>
+</div>
+
+<div id="statsPanel">
+    <div class="statsBox">
+        <h3>📊 Thống kê hôm nay</h3>
+        <div id="statsContent"></div>
+        <button id="clearTodayStats">🗑️ Xóa thống kê hôm nay</button>
+        <button id="closeStats">Đóng</button>
+    </div>
+</div>
+
+<div id="confirmClear">
+    <div style="background:#fff;color:#333;width:80%;max-width:300px;border-radius:18px;padding:18px;text-align:center;">
+        <div style="font-weight:bold;margin-bottom:16px">Xóa toàn bộ thống kê hôm nay?</div>
+        <div style="display:flex;gap:10px">
+            <button id="confirmYes" style="flex:1;background:#e53935;color:#fff;border:none;border-radius:999px;padding:10px;font-weight:bold">CÓ</button>
+            <button id="confirmNo" style="flex:1;background:#eee;color:#333;border:none;border-radius:999px;padding:10px;font-weight:bold">KHÔNG</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ================= DATA =================
+const items=[
+ "+3 Gói mì","Voucher 100k","+1 Gói mì","Tặng 2T mì",
+ "+1 Gói mì","Voucher 50k","+1 Gói mì","+5 Gói mì",
+ "Tặng 1T mì","Voucher 200k","+2 Gói mì","+1 Gói mì",
+ "1 Triệu VND","Voucher 500k","+4 Gói mì"
+];
+const colors=[
+ "#ff7043","#66bb6a","#9e9e9e","#7e57c2",
+ "#ffa726","#8bc34a","#bdbdbd","#ef5350",
+ "#42a5f5","#ffca28","#ff8a65","#cfd8dc",
+ "#ab47bc","#ffd700","#ff9800"
+];
+
+// ================= CYCLE 17 =================
+const CYCLE_KEY="spinCycle17";
+const CYCLE_INDEX_KEY="spinCycleIndex";
+const PRIZE_INDEX={p4:14,p3:0,p2:10,p1:4};
+
+function shuffle(a){
+    for(let i=a.length-1;i>0;i--){
+        const j=Math.floor(Math.random()*(i+1));
+        [a[i],a[j]]=[a[j],a[i]];
+    }
+}
+function initCycle(){
+    const p=[];
+    p.push(PRIZE_INDEX.p4);
+    p.push(PRIZE_INDEX.p3,PRIZE_INDEX.p3,PRIZE_INDEX.p3);
+    p.push(PRIZE_INDEX.p2,PRIZE_INDEX.p2,PRIZE_INDEX.p2,PRIZE_INDEX.p2);
+    for(let i=0;i<9;i++) p.push(PRIZE_INDEX.p1);
+    shuffle(p);
+    localStorage.setItem(CYCLE_KEY,JSON.stringify(p));
+    localStorage.setItem(CYCLE_INDEX_KEY,"0");
+}
+function getCycle(){
+    let p=JSON.parse(localStorage.getItem(CYCLE_KEY));
+    let i=+localStorage.getItem(CYCLE_INDEX_KEY);
+    if(!p||i>=17){
+        initCycle();
+        p=JSON.parse(localStorage.getItem(CYCLE_KEY));
+        i=0;
+    }
+    localStorage.setItem(CYCLE_INDEX_KEY,i+1);
+    return p[i];
+}
+
+// ================= CANVAS =================
+const canvas=wheel;
+const ctx=canvas.getContext("2d");
+const total=items.length;
+const center=240;
+const radius=190;
+const step=2*Math.PI/total;
+const ARROW_OFFSET=Math.PI/36;
+
+let angle=0,startAngle=0,targetAngle=0,startTime=0;
+let spinning=false,winnerIndex=null;
+let tick=0;
+let arrowBlink=false,winBlinkUntil=0;
+const duration=3800;
+
+// ================= INPUT =================
+["click","touchstart"].forEach(ev=>{
+    codeInput.addEventListener(ev,()=>codeInput.removeAttribute("readonly"));
+});
+codeInput.addEventListener("input",()=>{
+    if(codeInput.value.length===4){
+        codeInput.blur();
+        codeInput.setAttribute("readonly",true);
+    }
+});
+
+// ================= DRAW =================
+function drawWheel(){
+    ctx.clearRect(0,0,480,480);
+    for(let i=0;i<total;i++){
+        const s=angle+i*step;
+        ctx.save();
+        ctx.translate(center,center);
+        const g=ctx.createRadialGradient(0,0,40,0,0,radius);
+        g.addColorStop(0,"#fff");
+        g.addColorStop(.4,colors[i]);
+        g.addColorStop(1,"#000");
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        ctx.arc(0,0,radius,s,s+step);
+        ctx.fillStyle=g;
+        ctx.shadowColor=colors[i];
+        ctx.shadowBlur=10;
+        ctx.fill();
+        ctx.rotate(s+step/2);
+        ctx.font="bold 14px Arial";
+        ctx.textAlign="right";
+        ctx.strokeStyle="#000";
+        ctx.lineWidth=3;
+        ctx.fillStyle="#fff";
+        ctx.strokeText(items[i],radius-18,5);
+        ctx.fillText(items[i],radius-18,5);
+        ctx.restore();
+    }
+    for(let i=0;i<36;i++){
+        const a=i*2*Math.PI/36;
+        const on=(i+Math.floor(tick/8))%2===0;
+        ctx.beginPath();
+        ctx.arc(center+Math.cos(a)*(radius+30),center+Math.sin(a)*(radius+30),on?5:3.5,0,2*Math.PI);
+        ctx.fillStyle=on?"#fff9c4":"#ffb300";
+        ctx.shadowBlur=on?18:6;
+        ctx.fill();
+    }
+    ctx.save();
+    ctx.translate(center,center);
+    ctx.rotate(ARROW_OFFSET);
+    ctx.fillStyle="#ffd700";
+    ctx.beginPath();
+    ctx.moveTo(radius-18,0);
+    ctx.lineTo(radius+10,-14);
+    ctx.lineTo(radius+10,14);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    if(arrowBlink||performance.now()<winBlinkUntil){
+        ctx.save();
+        ctx.translate(center,center);
+        ctx.rotate(ARROW_OFFSET);
+        ctx.globalAlpha=0.6+0.4*Math.sin(tick*0.4);
+        ctx.fillStyle="#fff176";
+        ctx.shadowColor="#ffeb3b";
+        ctx.shadowBlur=25;
+        ctx.beginPath();
+        ctx.moveTo(radius-22,0);
+        ctx.lineTo(radius+16,-18);
+        ctx.lineTo(radius+16,18);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+// ================= SPIN =================
+btn.onclick=()=>{
+    if(spinning) return;
+    if(!/^\d{4}$/.test(codeInput.value)){
+        result.textContent="⚠️ Vui lòng nhập đủ 4 số";
+        result.classList.remove("flash");
+        return;
+    }
+    spinning=true;
+    arrowBlink=true;
+    result.textContent="";
+    result.classList.remove("flash");
+    winnerIndex=getCycle();
+    startAngle=angle;
+    targetAngle=angle+6*2*Math.PI+(2*Math.PI-(winnerIndex*step+step/2)-ARROW_OFFSET-angle)%(2*Math.PI);
+    startTime=performance.now();
+};
+
+// ================= LOOP =================
+function loop(t){
+    if(spinning){
+        const p=Math.min((t-startTime)/duration,1);
+        angle=startAngle+(targetAngle-startAngle)*(1-Math.pow(1-p,3));
+        if(p>=1){
+            spinning=false;
+            angle=targetAngle;
+            result.textContent="🎉 Bạn trúng: "+items[winnerIndex];
+            result.classList.add("flash");
+            arrowBlink=false;
+            winBlinkUntil=performance.now()+1600;
+            saveStat(items[winnerIndex]);
+            codeInput.value="";
+        }
+    }
+    drawWheel();
+    tick++;
+    requestAnimationFrame(loop);
+}
+
+// ================= STATS =================
+const STATS_KEY="spinStatsByDay";
+const todayKey=()=>new Date().toISOString().slice(0,10);
+function saveStat(t){
+    const m=t.match(/\+(\d+)/);
+    if(!m) return;
+    const d=todayKey();
+    const data=JSON.parse(localStorage.getItem(STATS_KEY)||"{}");
+    (data[d]??=[]).push(+m[1]);
+    localStorage.setItem(STATS_KEY,JSON.stringify(data));
+}
+function renderStats(){
+    const d=todayKey();
+    const list=(JSON.parse(localStorage.getItem(STATS_KEY)||"{}")[d]||[]);
+    if(!list.length){statsContent.textContent="Chưa có dữ liệu";return;}
+    const map={},sum=list.reduce((a,b)=>a+b,0);
+    list.forEach(n=>map[n]=(map[n]||0)+1);
+    statsContent.innerHTML=
+        Object.keys(map).map(n=>`• ${n} gói: ${map[n]} lượt`).join("<br>")
+        + `<hr><b>Tổng: ${sum} gói</b>`;
+}
+
+// ===== POPUP =====
+clearTodayStats.onclick=()=>confirmClear.style.display="flex";
+confirmNo.onclick=()=>confirmClear.style.display="none";
+confirmYes.onclick=()=>{
+    const d=todayKey();
+    const data=JSON.parse(localStorage.getItem(STATS_KEY)||"{}");
+    delete data[d];
+    localStorage.setItem(STATS_KEY,JSON.stringify(data));
+    renderStats();
+    confirmClear.style.display="none";
+};
+menuBtn.onclick=()=>{renderStats();statsPanel.classList.add("show")};
+closeStats.onclick=()=>statsPanel.classList.remove("show");
+
+// ===== RESET BUTTON =====
+resetCycle.onclick=()=>{
+    initCycle();
+    codeInput.value="";
+    result.textContent="";
+    resetMsg.classList.add("show");
+    setTimeout(()=>resetMsg.classList.remove("show"),1200);
+};
+
+// ================= INIT =================
+initCycle();
+loop();
+</script>
+
+</body>
+</html>
