@@ -20,7 +20,6 @@ body{
     overflow:hidden;
 }
 
-/* ===== UI ===== */
 #menuBtn,#resetCycle{
     position:fixed;
     top: calc(12px + env(safe-area-inset-top));
@@ -130,17 +129,6 @@ button:active{transform:scale(.95)}
     background:linear-gradient(45deg,#ff9800,#ff5722);
     color:#fff;
 }
-
-/* ===== CONFIRM ===== */
-#confirmClear{
-    position:fixed;
-    inset:0;
-    background:rgba(0,0,0,.45);
-    display:none;
-    align-items:center;
-    justify-content:center;
-    z-index:10000;
-}
 </style>
 </head>
 
@@ -166,16 +154,6 @@ button:active{transform:scale(.95)}
     </div>
 </div>
 
-<div id="confirmClear">
-    <div style="background:#fff;color:#333;width:80%;max-width:300px;border-radius:18px;padding:18px;text-align:center;">
-        <div style="font-weight:bold;margin-bottom:16px">Xóa toàn bộ thống kê hôm nay?</div>
-        <div style="display:flex;gap:10px">
-            <button id="confirmYes" style="flex:1;background:#e53935;color:#fff;border:none;border-radius:999px;padding:10px;font-weight:bold">CÓ</button>
-            <button id="confirmNo" style="flex:1;background:#eee;color:#333;border:none;border-radius:999px;padding:10px;font-weight:bold">KHÔNG</button>
-        </div>
-    </div>
-</div>
-
 <script>
 // ================= DATA =================
 const items=[
@@ -191,10 +169,15 @@ const colors=[
  "#ab47bc","#ffd700","#ff9800"
 ];
 
-// ================= CYCLE 17 =================
-const CYCLE_KEY="spinCycle17";
+// ================= CYCLE 20 =================
+const CYCLE_KEY="spinCycle20";
 const CYCLE_INDEX_KEY="spinCycleIndex";
-const PRIZE_INDEX={p4:14,p3:0,p2:10,p1:4};
+
+const PRIZE_INDEX={
+    p3:0,   // +3
+    p2:10,  // +2
+    p1:4    // +1
+};
 
 function shuffle(a){
     for(let i=a.length-1;i>0;i--){
@@ -202,20 +185,25 @@ function shuffle(a){
         [a[i],a[j]]=[a[j],a[i]];
     }
 }
+
 function initCycle(){
     const p=[];
-    p.push(PRIZE_INDEX.p4);
+    // +3 × 3
     p.push(PRIZE_INDEX.p3,PRIZE_INDEX.p3,PRIZE_INDEX.p3);
+    // +2 × 4
     p.push(PRIZE_INDEX.p2,PRIZE_INDEX.p2,PRIZE_INDEX.p2,PRIZE_INDEX.p2);
-    for(let i=0;i<9;i++) p.push(PRIZE_INDEX.p1);
+    // +1 × 13
+    for(let i=0;i<13;i++) p.push(PRIZE_INDEX.p1);
+
     shuffle(p);
     localStorage.setItem(CYCLE_KEY,JSON.stringify(p));
     localStorage.setItem(CYCLE_INDEX_KEY,"0");
 }
+
 function getCycle(){
     let p=JSON.parse(localStorage.getItem(CYCLE_KEY));
     let i=+localStorage.getItem(CYCLE_INDEX_KEY);
-    if(!p||i>=17){
+    if(!p||p.length!==20||i>=20){
         initCycle();
         p=JSON.parse(localStorage.getItem(CYCLE_KEY));
         i=0;
@@ -224,7 +212,7 @@ function getCycle(){
     return p[i];
 }
 
-// ================= CANVAS =================
+// ================= CANVAS & EFFECT =================
 const canvas=wheel;
 const ctx=canvas.getContext("2d");
 const total=items.length;
@@ -254,6 +242,7 @@ codeInput.addEventListener("input",()=>{
 // ================= DRAW =================
 function drawWheel(){
     ctx.clearRect(0,0,480,480);
+
     for(let i=0;i<total;i++){
         const s=angle+i*step;
         ctx.save();
@@ -322,7 +311,7 @@ function drawWheel(){
         ctx.restore();
     }
 
-    // ===== CHỮ TRÚNG THƯỞNG (2 DÒNG) =====
+    // chữ trúng thưởng
     if(performance.now()<winTextUntil){
         const t=(performance.now()-winTextStart)/1000;
         const scale=1+0.25*Math.sin(t*Math.PI*2);
@@ -332,7 +321,6 @@ function drawWheel(){
         ctx.textAlign="center";
         ctx.textBaseline="middle";
 
-        // dòng trên
         ctx.font="bold 26px Arial";
         ctx.fillStyle="#ffeb3b";
         ctx.strokeStyle="#000";
@@ -342,16 +330,14 @@ function drawWheel(){
         ctx.strokeText("BẠN ĐÃ TRÚNG THƯỞNG",0,-18);
         ctx.fillText("BẠN ĐÃ TRÚNG THƯỞNG",0,-18);
 
-        // dòng dưới – tên giải
         ctx.font="bold 32px Arial";
-        ctx.fillStyle="#ffffff";
+        ctx.fillStyle="#fff";
         ctx.strokeStyle="#000";
         ctx.lineWidth=5;
         ctx.shadowColor="#ff5722";
         ctx.shadowBlur=25;
         ctx.strokeText(items[winnerIndex],0,22);
         ctx.fillText(items[winnerIndex],0,22);
-
         ctx.restore();
     }
 }
@@ -400,6 +386,7 @@ function loop(t){
 // ================= STATS =================
 const STATS_KEY="spinStatsByDay";
 const todayKey=()=>new Date().toISOString().slice(0,10);
+
 function saveStat(t){
     const m=t.match(/\+(\d+)/);
     if(!m) return;
@@ -408,6 +395,7 @@ function saveStat(t){
     (data[d]??=[]).push(+m[1]);
     localStorage.setItem(STATS_KEY,JSON.stringify(data));
 }
+
 function renderStats(){
     const d=todayKey();
     const list=(JSON.parse(localStorage.getItem(STATS_KEY)||"{}")[d]||[]);
@@ -419,21 +407,10 @@ function renderStats(){
         + `<hr><b>Tổng: ${sum} gói</b>`;
 }
 
-// ===== POPUP =====
-clearTodayStats.onclick=()=>confirmClear.style.display="flex";
-confirmNo.onclick=()=>confirmClear.style.display="none";
-confirmYes.onclick=()=>{
-    const d=todayKey();
-    const data=JSON.parse(localStorage.getItem(STATS_KEY)||"{}");
-    delete data[d];
-    localStorage.setItem(STATS_KEY,JSON.stringify(data));
-    renderStats();
-    confirmClear.style.display="none";
-};
 menuBtn.onclick=()=>{renderStats();statsPanel.classList.add("show")};
 closeStats.onclick=()=>statsPanel.classList.remove("show");
+clearTodayStats.onclick=()=>{localStorage.removeItem(STATS_KEY);renderStats()};
 
-// ===== RESET =====
 resetCycle.onclick=()=>{
     initCycle();
     codeInput.value="";
