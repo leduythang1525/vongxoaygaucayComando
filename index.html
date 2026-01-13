@@ -20,6 +20,9 @@ body{
     overflow:hidden;
 }
 
+/* ẨN Ô NHẬP 4 SỐ */
+#codeInput{display:none!important;}
+
 #menuBtn,#resetCycle{
     position:fixed;
     top: calc(12px + env(safe-area-inset-top));
@@ -54,18 +57,6 @@ body{
 }
 canvas{width:80vw;max-width:390px;aspect-ratio:1/1}
 
-#codeInput{
-    margin-top:12px;
-    width:160px;
-    padding:12px;
-    text-align:center;
-    font-size:18px;
-    letter-spacing:6px;
-    border:none;
-    border-radius:999px;
-    background:rgba(255,255,255,.45);
-    font-weight:bold;
-}
 button{
     margin-top:14px;
     padding:14px 42px;
@@ -91,7 +82,7 @@ button:active{transform:scale(.95)}
     text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000,0 0 14px #9c27b0;
 }
 
-/* ===== STATS ===== */
+/* STATS */
 #statsPanel{
     position:fixed;
     inset:0;
@@ -111,24 +102,15 @@ button:active{transform:scale(.95)}
 }
 .statsBox h3{text-align:center;color:#ff5722}
 #statsContent{font-size:14px;margin:12px 0}
-#clearTodayStats{
+#clearTodayStats,#closeStats{
     width:100%;
     padding:10px;
     border:none;
     border-radius:999px;
-    background:#eee;
-    color:#d32f2f;
     font-weight:bold;
-    margin-bottom:8px;
 }
-#closeStats{
-    width:100%;
-    padding:10px;
-    border:none;
-    border-radius:999px;
-    background:linear-gradient(45deg,#ff9800,#ff5722);
-    color:#fff;
-}
+#clearTodayStats{background:#eee;color:#d32f2f;margin-bottom:8px}
+#closeStats{background:linear-gradient(45deg,#ff9800,#ff5722);color:#fff}
 </style>
 </head>
 
@@ -140,7 +122,7 @@ button:active{transform:scale(.95)}
 
 <div id="wrapper">
     <canvas id="wheel" width="480" height="480"></canvas>
-    <input id="codeInput" maxlength="4" inputmode="numeric" placeholder="Nhập mã" readonly>
+    <input id="codeInput" value="0000" maxlength="4" readonly>
     <button id="btn">BẮT ĐẦU</button>
     <div id="result"></div>
 </div>
@@ -169,15 +151,10 @@ const colors=[
  "#ab47bc","#ffd700","#ff9800"
 ];
 
-// ================= CYCLE 20 =================
+// ================= CYCLE =================
 const CYCLE_KEY="spinCycle20";
 const CYCLE_INDEX_KEY="spinCycleIndex";
-
-const PRIZE_INDEX={
-    p3:0,   // +3
-    p2:10,  // +2
-    p1:4    // +1
-};
+const PRIZE_INDEX={p3:0,p2:10,p1:4};
 
 function shuffle(a){
     for(let i=a.length-1;i>0;i--){
@@ -185,34 +162,24 @@ function shuffle(a){
         [a[i],a[j]]=[a[j],a[i]];
     }
 }
-
 function initCycle(){
     const p=[];
-    // +3 × 3
     p.push(PRIZE_INDEX.p3,PRIZE_INDEX.p3,PRIZE_INDEX.p3);
-    // +2 × 4
     p.push(PRIZE_INDEX.p2,PRIZE_INDEX.p2,PRIZE_INDEX.p2,PRIZE_INDEX.p2);
-    // +1 × 13
     for(let i=0;i<13;i++) p.push(PRIZE_INDEX.p1);
-
     shuffle(p);
     localStorage.setItem(CYCLE_KEY,JSON.stringify(p));
     localStorage.setItem(CYCLE_INDEX_KEY,"0");
 }
-
 function getCycle(){
     let p=JSON.parse(localStorage.getItem(CYCLE_KEY));
     let i=+localStorage.getItem(CYCLE_INDEX_KEY);
-    if(!p||p.length!==20||i>=20){
-        initCycle();
-        p=JSON.parse(localStorage.getItem(CYCLE_KEY));
-        i=0;
-    }
+    if(!p||p.length!==20||i>=20){initCycle();p=JSON.parse(localStorage.getItem(CYCLE_KEY));i=0;}
     localStorage.setItem(CYCLE_INDEX_KEY,i+1);
     return p[i];
 }
 
-// ================= CANVAS & EFFECT =================
+// ================= CANVAS =================
 const canvas=wheel;
 const ctx=canvas.getContext("2d");
 const total=items.length;
@@ -223,21 +190,9 @@ const ARROW_OFFSET=Math.PI/36;
 
 let angle=0,startAngle=0,targetAngle=0,startTime=0;
 let spinning=false,winnerIndex=null;
-let tick=0;
-let arrowBlink=false,winBlinkUntil=0;
-let winTextStart=0,winTextUntil=0;
+let tick=0,arrowBlink=false;
+let winBlinkUntil=0,winTextStart=0,winTextUntil=0;
 const duration=3800;
-
-// ================= INPUT =================
-["click","touchstart"].forEach(ev=>{
-    codeInput.addEventListener(ev,()=>codeInput.removeAttribute("readonly"));
-});
-codeInput.addEventListener("input",()=>{
-    if(codeInput.value.length===4){
-        codeInput.blur();
-        codeInput.setAttribute("readonly",true);
-    }
-});
 
 // ================= DRAW =================
 function drawWheel(){
@@ -311,7 +266,7 @@ function drawWheel(){
         ctx.restore();
     }
 
-    // chữ trúng thưởng
+    // text trúng thưởng
     if(performance.now()<winTextUntil){
         const t=(performance.now()-winTextStart)/1000;
         const scale=1+0.25*Math.sin(t*Math.PI*2);
@@ -320,7 +275,6 @@ function drawWheel(){
         ctx.scale(scale,scale);
         ctx.textAlign="center";
         ctx.textBaseline="middle";
-
         ctx.font="bold 26px Arial";
         ctx.fillStyle="#ffeb3b";
         ctx.strokeStyle="#000";
@@ -329,7 +283,6 @@ function drawWheel(){
         ctx.shadowBlur=20;
         ctx.strokeText("BẠN ĐÃ TRÚNG THƯỞNG",0,-18);
         ctx.fillText("BẠN ĐÃ TRÚNG THƯỞNG",0,-18);
-
         ctx.font="bold 32px Arial";
         ctx.fillStyle="#fff";
         ctx.strokeStyle="#000";
@@ -342,14 +295,35 @@ function drawWheel(){
     }
 }
 
+// ================= STATS =================
+const STATS_KEY="spinStatsByDay";
+const todayKey=()=>new Date().toISOString().slice(0,10);
+function saveStat(t){
+    const m=t.match(/\+(\d+)/);
+    if(!m) return;
+    const d=todayKey();
+    const data=JSON.parse(localStorage.getItem(STATS_KEY)||"{}");
+    (data[d]??=[]).push(+m[1]);
+    localStorage.setItem(STATS_KEY,JSON.stringify(data));
+}
+function renderStats(){
+    const d=todayKey();
+    const list=(JSON.parse(localStorage.getItem(STATS_KEY)||"{}")[d]||[]);
+    if(!list.length){statsContent.textContent="Chưa có dữ liệu";return;}
+    const map={},sum=list.reduce((a,b)=>a+b,0);
+    list.forEach(n=>map[n]=(map[n]||0)+1);
+    statsContent.innerHTML=
+        Object.keys(map).map(n=>`• ${n} gói: ${map[n]} lượt`).join("<br>")
+        + `<hr><b>Tổng: ${sum} gói</b>`;
+}
+
+menuBtn.onclick=()=>{renderStats();statsPanel.classList.add("show")};
+closeStats.onclick=()=>statsPanel.classList.remove("show");
+clearTodayStats.onclick=()=>{localStorage.removeItem(STATS_KEY);renderStats()};
+
 // ================= SPIN =================
 btn.onclick=()=>{
     if(spinning) return;
-    if(!/^\d{4}$/.test(codeInput.value)){
-        result.textContent="⚠️ Vui lòng nhập đủ 4 số";
-        result.classList.remove("flash");
-        return;
-    }
     spinning=true;
     arrowBlink=true;
     result.textContent="";
@@ -375,7 +349,6 @@ function loop(t){
             winTextStart=performance.now();
             winTextUntil=winTextStart+3000;
             saveStat(items[winnerIndex]);
-            codeInput.value="";
         }
     }
     drawWheel();
@@ -383,37 +356,9 @@ function loop(t){
     requestAnimationFrame(loop);
 }
 
-// ================= STATS =================
-const STATS_KEY="spinStatsByDay";
-const todayKey=()=>new Date().toISOString().slice(0,10);
-
-function saveStat(t){
-    const m=t.match(/\+(\d+)/);
-    if(!m) return;
-    const d=todayKey();
-    const data=JSON.parse(localStorage.getItem(STATS_KEY)||"{}");
-    (data[d]??=[]).push(+m[1]);
-    localStorage.setItem(STATS_KEY,JSON.stringify(data));
-}
-
-function renderStats(){
-    const d=todayKey();
-    const list=(JSON.parse(localStorage.getItem(STATS_KEY)||"{}")[d]||[]);
-    if(!list.length){statsContent.textContent="Chưa có dữ liệu";return;}
-    const map={},sum=list.reduce((a,b)=>a+b,0);
-    list.forEach(n=>map[n]=(map[n]||0)+1);
-    statsContent.innerHTML=
-        Object.keys(map).map(n=>`• ${n} gói: ${map[n]} lượt`).join("<br>")
-        + `<hr><b>Tổng: ${sum} gói</b>`;
-}
-
-menuBtn.onclick=()=>{renderStats();statsPanel.classList.add("show")};
-closeStats.onclick=()=>statsPanel.classList.remove("show");
-clearTodayStats.onclick=()=>{localStorage.removeItem(STATS_KEY);renderStats()};
-
+// ================= RESET =================
 resetCycle.onclick=()=>{
     initCycle();
-    codeInput.value="";
     result.textContent="";
     resetMsg.classList.add("show");
     setTimeout(()=>resetMsg.classList.remove("show"),1200);
