@@ -174,9 +174,9 @@ const CYCLE_KEY="spinCycle20";
 const CYCLE_INDEX_KEY="spinCycleIndex";
 
 const PRIZE_INDEX={
-    p3:0,   // +3
-    p2:10,  // +2
-    p1:4    // +1
+    p3:4,
+    p2:4,
+    p1:4
 };
 
 function shuffle(a){
@@ -188,13 +188,7 @@ function shuffle(a){
 
 function initCycle(){
     const p=[];
-    // +3 × 3
-    p.push(PRIZE_INDEX.p3,PRIZE_INDEX.p3,PRIZE_INDEX.p3);
-    // +2 × 4
-    p.push(PRIZE_INDEX.p2,PRIZE_INDEX.p2,PRIZE_INDEX.p2,PRIZE_INDEX.p2);
-    // +1 × 13
-    for(let i=0;i<13;i++) p.push(PRIZE_INDEX.p1);
-
+    for(let i=0;i<20;i++) p.push(PRIZE_INDEX.p1);
     shuffle(p);
     localStorage.setItem(CYCLE_KEY,JSON.stringify(p));
     localStorage.setItem(CYCLE_INDEX_KEY,"0");
@@ -269,7 +263,6 @@ function drawWheel(){
         ctx.restore();
     }
 
-    // đèn viền
     for(let i=0;i<36;i++){
         const a=i*2*Math.PI/36;
         const on=(i+Math.floor(tick/8))%2===0;
@@ -280,7 +273,6 @@ function drawWheel(){
         ctx.fill();
     }
 
-    // mũi tên
     ctx.save();
     ctx.translate(center,center);
     ctx.rotate(ARROW_OFFSET);
@@ -293,7 +285,6 @@ function drawWheel(){
     ctx.fill();
     ctx.restore();
 
-    // mũi tên nhấp nháy
     if(arrowBlink||performance.now()<winBlinkUntil){
         ctx.save();
         ctx.translate(center,center);
@@ -311,7 +302,6 @@ function drawWheel(){
         ctx.restore();
     }
 
-    // chữ trúng thưởng
     if(performance.now()<winTextUntil){
         const t=(performance.now()-winTextStart)/1000;
         const scale=1+0.25*Math.sin(t*Math.PI*2);
